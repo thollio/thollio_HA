@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🌲 thollio_HA</title>
-  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1f2937">
-  <link rel="icon" href="favicon.png" type="image/png">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.png">
+  <script src=https://cdn.tailwindcss.com></script>
+  <link rel="stylesheet" href=https://unpkg.com/leaflet@1.9.4/dist/leaflet.css/>
+  <script src=https://unpkg.com/leaflet@1.9.4/dist/leaflet.js></script>
+  <script src=https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js></script>
   <style>
     body { background-color: #1f2937; color: #f9fafb; }
     input, select, button { font-size: 1rem; }
@@ -23,14 +23,213 @@
     #map { height: 320px; border-radius: 1rem; overflow: hidden; margin-top: 1rem; }
   </style>
 </head>
-<body class="p-6">
+<body class="p-4">
   <h1 class="text-3xl font-bold mb-4">🌲 thollio_HA</h1>
-  <p class="text-gray-400 mb-6">Offlinefähige Holzerfassung – optimiert für Smartphone.</p>
-  <iframe src="../minimal/index.html" style="width:100%;height:600px;border:none;"></iframe>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div>
+      <select id="baumart" class="p-2 rounded bg-gray-700 w-full">
+        <option value="">-- Baumart wählen --</option>
+        <option value="Fichte">Fichte</option>
+        <option value="Weißtanne">Weißtanne</option>
+        <option value="Douglasie">Douglasie</option>
+        <option value="Lärche">Lärche</option>
+        <option value="Kiefer">Kiefer</option>
+        <option value="Buche">Buche</option>
+        <option value="Eiche">Eiche</option>
+        <option value="Ahorn">Ahorn</option>
+        <option value="Birke">Birke</option>
+        <option value="Kirsche">Kirsche</option>
+        <option value="Erle">Erle</option>
+        <option value="LBH">LBH</option>
+        <option value="LBW">LBW</option>
+        <option value="Andere">Andere...</option>
+      </select>
+      <input id="baumartAnders" placeholder="Baumart eingeben" class="p-2 rounded bg-gray-700 mt-2 hidden w-full">
+    </div>
+
+    <div>
+      <select id="guete" class="p-2 rounded bg-gray-700 w-full">
+        <option value="">-- Güteklasse --</option>
+        <option>A</option><option>B</option><option>C</option><option>D</option>
+        <option>BC</option><option>CK</option><option>N</option><option>K</option>
+      </select>
+    </div>
+
+    <input id="laenge" placeholder="Länge (m)" type="number" class="p-2 rounded bg-gray-700">
+    <input id="durchmesser" placeholder="Durchmesser (cm)" type="number" class="p-2 rounded bg-gray-700">
+    <input id="datum" type="date" class="p-2 rounded bg-gray-700">
+
+    <div class="flex space-x-2">
+      <input id="standort" placeholder="Standort oder Koordinaten" class="p-2 rounded bg-gray-700 flex-grow">
+      <button id="getLocation" class="px-3 bg-indigo-600 rounded">📍</button>
+    </div>
+
+    <input id="bemerkung" placeholder="Bemerkung" class="p-2 rounded bg-gray-700">
+  </div>
+
+  <div id="map"></div>
+
+  <div class="mt-4 space-x-2">
+    <button id="hinzufuegen" class="px-4 py-2 bg-green-600 rounded">Eintrag hinzufügen</button>
+    <button id="aktualisieren" class="px-4 py-2 bg-yellow-600 rounded hidden">Eintrag aktualisieren</button>
+    <button id="exportCSV" class="px-4 py-2 bg-blue-600 rounded">CSV exportieren</button>
+    <button id="exportExcel" class="px-4 py-2 bg-amber-500 rounded">Excel exportieren</button>
+    <button id="loeschen" class="px-4 py-2 bg-red-600 rounded">Alles löschen</button>
+  </div>
+
+  <table class="mt-4">
+    <thead>
+      <tr>
+        <th>Baumart</th><th>Güteklasse</th><th>Länge (m)</th><th>Durchmesser (cm)</th>
+        <th>Volumen (m³)</th><th>Datum</th><th>Standort</th><th>Bemerkung</th><th>Aktionen</th>
+      </tr>
+    </thead>
+    <tbody id="tabelle"></tbody>
+    <tfoot>
+      <tr class="font-bold bg-gray-800">
+        <td colspan="4" class="text-right pr-4">Gesamtvolumen:</td>
+        <td id="gesamtVolumen">0.000</td><td colspan="4"></td>
+      </tr>
+    </tfoot>
+  </table>
+
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js');
+    let daten = JSON.parse(localStorage.getItem('holzDaten') || '[]');
+    let map, marker, editIndex = null;
+    const baumart = document.getElementById('baumart');
+    const baumartAnders = document.getElementById('baumartAnders');
+    const guete = document.getElementById('guete');
+    const laenge = document.getElementById('laenge');
+    const durchmesser = document.getElementById('durchmesser');
+    const datum = document.getElementById('datum');
+    const standort = document.getElementById('standort');
+    const bemerkung = document.getElementById('bemerkung');
+    const tabelle = document.getElementById('tabelle');
+    const gesamtVolumenEl = document.getElementById('gesamtVolumen');
+    const btnAdd = document.getElementById('hinzufuegen');
+    const btnUpdate = document.getElementById('aktualisieren');
+
+    function initMap() {
+      map = L.map('map').setView([51.1657, 10.4515], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      map.on('click', e => setMarker(e.latlng.lat, e.latlng.lng));
     }
+
+    function setMarker(lat, lng) {
+      standort.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      if (marker) marker.setLatLng([lat, lng]);
+      else {
+        marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        marker.on('dragend', () => {
+          const pos = marker.getLatLng();
+          standort.value = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+        });
+      }
+      map.setView([lat, lng], 15);
+    }
+
+    document.getElementById('getLocation').addEventListener('click', () => {
+      navigator.geolocation?.getCurrentPosition(pos => setMarker(pos.coords.latitude, pos.coords.longitude));
+    });
+
+    baumart.addEventListener('change', () => {
+      baumartAnders.classList.toggle('hidden', baumart.value !== 'Andere');
+    });
+
+    function volumen(d, l) {
+      const dd = parseFloat(d), ll = parseFloat(l);
+      return ((Math.PI * (dd/2)**2 * ll) / 10000).toFixed(3);
+    }
+
+    function speichern() {
+      localStorage.setItem('holzDaten', JSON.stringify(daten));
+      render();
+    }
+
+    function render() {
+      tabelle.innerHTML = '';
+      let sum = 0;
+      daten.forEach((e, i) => {
+        sum += parseFloat(e.volumen);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${e.baumart}</td><td>${e.guete}</td><td>${e.laenge}</td>
+        <td>${e.durchmesser}</td><td>${e.volumen}</td><td>${e.datum}</td>
+        <td>${e.standort}</td><td>${e.bemerkung}</td>
+        <td><button class='bg-red-600 px-2 py-1 rounded' onclick='loeschenEintrag(${i})'>🗑️</button></td>`;
+        tr.addEventListener('click', () => laden(i));
+        tabelle.appendChild(tr);
+      });
+      gesamtVolumenEl.textContent = sum.toFixed(3);
+    }
+
+    window.loeschenEintrag = i => { daten.splice(i,1); speichern(); };
+
+    function laden(i) {
+      const e = daten[i];
+      baumart.value = e.baumart;
+      guete.value = e.guete;
+      laenge.value = e.laenge;
+      durchmesser.value = e.durchmesser;
+      datum.value = e.datum;
+      standort.value = e.standort;
+      bemerkung.value = e.bemerkung;
+      editIndex = i;
+      btnAdd.classList.add('hidden');
+      btnUpdate.classList.remove('hidden');
+    }
+
+    btnUpdate.onclick = () => {
+      const e = daten[editIndex];
+      Object.assign(e, {
+        baumart: baumart.value === 'Andere' ? baumartAnders.value : baumart.value,
+        guete: guete.value,
+        laenge: laenge.value,
+        durchmesser: durchmesser.value,
+        datum: datum.value,
+        standort: standort.value,
+        bemerkung: bemerkung.value,
+        volumen: volumen(durchmesser.value, laenge.value)
+      });
+      editIndex = null;
+      btnAdd.classList.remove('hidden');
+      btnUpdate.classList.add('hidden');
+      speichern();
+    };
+
+    btnAdd.onclick = () => {
+      if (!baumart.value || !guete.value || !laenge.value || !durchmesser.value) return;
+      daten.push({
+        baumart: baumart.value === 'Andere' ? baumartAnders.value : baumart.value,
+        guete: guete.value,
+        laenge: laenge.value,
+        durchmesser: durchmesser.value,
+        datum: datum.value,
+        standort: standort.value,
+        bemerkung: bemerkung.value,
+        volumen: volumen(durchmesser.value, laenge.value)
+      });
+      speichern();
+    };
+
+    document.getElementById('exportCSV').onclick = () => {
+      const header = ['Baumart','Güteklasse','Länge','Durchmesser','Volumen','Datum','Standort','Bemerkung'];
+      const csv = [header.join(','), ...daten.map(e => [e.baumart,e.guete,e.laenge,e.durchmesser,e.volumen,e.datum,e.standort,e.bemerkung].join(','))].join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+      a.download = 'thollio_HA.csv'; a.click();
+    };
+
+    document.getElementById('exportExcel').onclick = () => {
+      const ws = XLSX.utils.json_to_sheet(daten);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'thollio_HA');
+      XLSX.writeFile(wb, 'thollio_HA.xlsx');
+    };
+
+    document.getElementById('loeschen').onclick = () => { daten=[]; speichern(); };
+    window.addEventListener('load', () => { initMap(); render(); });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
   </script>
 </body>
 </html>

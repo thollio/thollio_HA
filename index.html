@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌲 thollio_HA</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1f2937">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    body { background-color: #1f2937; color: #f9fafb; }
+    input, select, button { font-size: 1rem; }
+    table { width: 100%; border-collapse: collapse; cursor: pointer; }
+    th, td { padding: 0.5rem; border: 1px solid #374151; text-align: center; }
+    th { background-color: #111827; }
+    td { background-color: #1f2937; }
+    tr:hover { background-color: #374151; }
+    button { cursor: pointer; }
+    #map { height: 320px; border-radius: 1rem; overflow: hidden; margin-top: 1rem; }
+  </style>
+</head>
+<body class="p-6">
+  <h1 class="text-3xl font-bold mb-4">🌲 thollio_HA</h1>
+  <p class="text-gray-400 mb-6">Offlinefähige Holzerfassung – optimiert für Smartphone.</p>
+  <iframe src="../minimal/index.html" style="width:100%;height:600px;border:none;"></iframe>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>

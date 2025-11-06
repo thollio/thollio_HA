@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌲 thollio_HA</title>
-  <meta name="theme-color" content="#1f2937">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="favicon.png">
+  <title>🌲 Holzerfassung Offline</title>
+
   <script src=https://cdn.tailwindcss.com></script>
-  <link rel="stylesheet" href=https://unpkg.com/leaflet@1.9.4/dist/leaflet.css/>
+  <link rel="stylesheet" href=https://unpkg.com/leaflet@1.9.4/dist/leaflet.css />
   <script src=https://unpkg.com/leaflet@1.9.4/dist/leaflet.js></script>
   <script src=https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js></script>
+
   <style>
     body { background-color: #1f2937; color: #f9fafb; }
     input, select, button { font-size: 1rem; }
@@ -23,10 +22,11 @@
     #map { height: 320px; border-radius: 1rem; overflow: hidden; margin-top: 1rem; }
   </style>
 </head>
-<body class="p-4">
-  <h1 class="text-3xl font-bold mb-4">🌲 thollio_HA</h1>
+<body class="p-6">
+  <h1 class="text-3xl font-bold mb-4">🌲 Holzerfassung Offline</h1>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+  <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- Baumart -->
     <div>
       <select id="baumart" class="p-2 rounded bg-gray-700 w-full">
         <option value="">-- Baumart wählen --</option>
@@ -45,30 +45,39 @@
         <option value="LBW">LBW</option>
         <option value="Andere">Andere...</option>
       </select>
-      <input id="baumartAnders" placeholder="Baumart eingeben" class="p-2 rounded bg-gray-700 mt-2 hidden w-full">
+      <input id="baumartAnders" placeholder="Baumart eingeben" class="p-2 rounded bg-gray-700 mt-2 hidden w-full" />
     </div>
 
+    <!-- Güteklasse -->
     <div>
       <select id="guete" class="p-2 rounded bg-gray-700 w-full">
         <option value="">-- Güteklasse --</option>
-        <option>A</option><option>B</option><option>C</option><option>D</option>
-        <option>BC</option><option>CK</option><option>N</option><option>K</option>
+        <option value="A">A</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
+        <option value="D">D</option>
+        <option value="BC">BC</option>
+        <option value="CK">CK</option>
+        <option value="N">N</option>
+        <option value="K">K</option>
       </select>
     </div>
 
-    <input id="laenge" placeholder="Länge (m)" type="number" class="p-2 rounded bg-gray-700">
-    <input id="durchmesser" placeholder="Durchmesser (cm)" type="number" class="p-2 rounded bg-gray-700">
-    <input id="datum" type="date" class="p-2 rounded bg-gray-700">
+    <input id="laenge" placeholder="Länge (m)" type="number" class="p-2 rounded bg-gray-700" />
+    <input id="durchmesser" placeholder="Durchmesser (cm)" type="number" class="p-2 rounded bg-gray-700" />
+    <input id="datum" type="date" class="p-2 rounded bg-gray-700" />
 
+    <!-- Standort -->
     <div class="flex space-x-2">
-      <input id="standort" placeholder="Standort oder Koordinaten" class="p-2 rounded bg-gray-700 flex-grow">
+      <input id="standort" placeholder="Standort oder Koordinaten" class="p-2 rounded bg-gray-700 flex-grow" />
       <button id="getLocation" class="px-3 bg-indigo-600 rounded">📍</button>
     </div>
 
-    <input id="bemerkung" placeholder="Bemerkung" class="p-2 rounded bg-gray-700">
+    <input id="bemerkung" placeholder="Bemerkung" class="p-2 rounded bg-gray-700" />
   </div>
 
-  <div id="map"></div>
+  <!-- Karte -->
+  <div id="map" class="shadow-lg"></div>
 
   <div class="mt-4 space-x-2">
     <button id="hinzufuegen" class="px-4 py-2 bg-green-600 rounded">Eintrag hinzufügen</button>
@@ -81,22 +90,31 @@
   <table class="mt-4">
     <thead>
       <tr>
-        <th>Baumart</th><th>Güteklasse</th><th>Länge (m)</th><th>Durchmesser (cm)</th>
-        <th>Volumen (m³)</th><th>Datum</th><th>Standort</th><th>Bemerkung</th><th>Aktionen</th>
+        <th>Baumart</th>
+        <th>Güteklasse</th>
+        <th>Länge (m)</th>
+        <th>Durchmesser (cm)</th>
+        <th>Volumen (m³)</th>
+        <th>Datum</th>
+        <th>Standort</th>
+        <th>Bemerkung</th>
+        <th>Aktionen</th>
       </tr>
     </thead>
     <tbody id="tabelle"></tbody>
     <tfoot>
       <tr class="font-bold bg-gray-800">
         <td colspan="4" class="text-right pr-4">Gesamtvolumen:</td>
-        <td id="gesamtVolumen">0.000</td><td colspan="4"></td>
+        <td id="gesamtVolumen">0.000</td>
+        <td colspan="4"></td>
       </tr>
     </tfoot>
   </table>
 
   <script>
-    let daten = JSON.parse(localStorage.getItem('holzDaten') || '[]');
-    let map, marker, editIndex = null;
+    let daten = [];
+    let map, marker, editIndex = null, lastEntry = null;
+
     const baumart = document.getElementById('baumart');
     const baumartAnders = document.getElementById('baumartAnders');
     const guete = document.getElementById('guete');
@@ -112,8 +130,14 @@
 
     function initMap() {
       map = L.map('map').setView([51.1657, 10.4515], 6);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-      map.on('click', e => setMarker(e.latlng.lat, e.latlng.lng));
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setMarker(lat, lng);
+      });
     }
 
     function setMarker(lat, lng) {
@@ -129,43 +153,51 @@
       map.setView([lat, lng], 15);
     }
 
-    document.getElementById('getLocation').addEventListener('click', () => {
-      navigator.geolocation?.getCurrentPosition(pos => setMarker(pos.coords.latitude, pos.coords.longitude));
-    });
+    function getGPS() {
+      if (!navigator.geolocation) return alert("GPS nicht unterstützt");
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+        setMarker(lat, lon);
+      });
+    }
+
+    document.getElementById('getLocation').addEventListener('click', getGPS);
 
     baumart.addEventListener('change', () => {
       baumartAnders.classList.toggle('hidden', baumart.value !== 'Andere');
     });
 
-    function volumen(d, l) {
+    function volumenBerechnen(d, l) {
       const dd = parseFloat(d), ll = parseFloat(l);
-      return ((Math.PI * (dd/2)**2 * ll) / 10000).toFixed(3);
-    }
-
-    function speichern() {
-      localStorage.setItem('holzDaten', JSON.stringify(daten));
-      render();
+      return ((Math.PI * Math.pow(dd / 2, 2) * ll) / 10000).toFixed(3);
     }
 
     function render() {
       tabelle.innerHTML = '';
-      let sum = 0;
+      let summe = 0;
       daten.forEach((e, i) => {
-        sum += parseFloat(e.volumen);
+        summe += parseFloat(e.volumen);
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${e.baumart}</td><td>${e.guete}</td><td>${e.laenge}</td>
-        <td>${e.durchmesser}</td><td>${e.volumen}</td><td>${e.datum}</td>
-        <td>${e.standort}</td><td>${e.bemerkung}</td>
-        <td><button class='bg-red-600 px-2 py-1 rounded' onclick='loeschenEintrag(${i})'>🗑️</button></td>`;
-        tr.addEventListener('click', () => laden(i));
+        tr.innerHTML = `
+          <td>${e.baumart}</td>
+          <td>${e.guete}</td>
+          <td>${e.laenge}</td>
+          <td>${e.durchmesser}</td>
+          <td>${e.volumen}</td>
+          <td>${e.datum}</td>
+          <td>${e.standort}</td>
+          <td>${e.bemerkung}</td>
+          <td><button class='bg-red-600 px-2 py-1 rounded' onclick='loeschenEintrag(${i})'>🗑️</button></td>
+        `;
+        tr.addEventListener('click', () => ladeZumBearbeiten(i));
         tabelle.appendChild(tr);
       });
-      gesamtVolumenEl.textContent = sum.toFixed(3);
+      gesamtVolumenEl.textContent = summe.toFixed(3);
     }
 
-    window.loeschenEintrag = i => { daten.splice(i,1); speichern(); };
+    window.loeschenEintrag = (i) => { daten.splice(i, 1); render(); };
 
-    function laden(i) {
+    function ladeZumBearbeiten(i) {
       const e = daten[i];
       baumart.value = e.baumart;
       guete.value = e.guete;
@@ -174,62 +206,84 @@
       datum.value = e.datum;
       standort.value = e.standort;
       bemerkung.value = e.bemerkung;
+
+      if (e.standort.includes(',')) {
+        const [lat, lon] = e.standort.split(',').map(parseFloat);
+        setMarker(lat, lon);
+      }
+
       editIndex = i;
       btnAdd.classList.add('hidden');
       btnUpdate.classList.remove('hidden');
     }
 
-    btnUpdate.onclick = () => {
+    btnUpdate.addEventListener('click', () => {
       const e = daten[editIndex];
-      Object.assign(e, {
-        baumart: baumart.value === 'Andere' ? baumartAnders.value : baumart.value,
-        guete: guete.value,
-        laenge: laenge.value,
-        durchmesser: durchmesser.value,
-        datum: datum.value,
-        standort: standort.value,
-        bemerkung: bemerkung.value,
-        volumen: volumen(durchmesser.value, laenge.value)
-      });
+      e.baumart = baumart.value;
+      e.guete = guete.value;
+      e.laenge = laenge.value;
+      e.durchmesser = durchmesser.value;
+      e.datum = datum.value;
+      e.standort = standort.value;
+      e.bemerkung = bemerkung.value;
+      e.volumen = volumenBerechnen(e.durchmesser, e.laenge);
+      render();
       editIndex = null;
-      btnAdd.classList.remove('hidden');
       btnUpdate.classList.add('hidden');
-      speichern();
-    };
+      btnAdd.classList.remove('hidden');
+    });
 
-    btnAdd.onclick = () => {
-      if (!baumart.value || !guete.value || !laenge.value || !durchmesser.value) return;
-      daten.push({
-        baumart: baumart.value === 'Andere' ? baumartAnders.value : baumart.value,
+    btnAdd.addEventListener('click', () => {
+      let b = baumart.value === 'Andere' ? baumartAnders.value : baumart.value;
+      if (!b || !guete.value || !laenge.value || !durchmesser.value) return;
+
+      const eintrag = {
+        baumart: b,
         guete: guete.value,
         laenge: laenge.value,
         durchmesser: durchmesser.value,
         datum: datum.value,
         standort: standort.value,
         bemerkung: bemerkung.value,
-        volumen: volumen(durchmesser.value, laenge.value)
-      });
-      speichern();
-    };
+        volumen: volumenBerechnen(durchmesser.value, laenge.value)
+      };
+      daten.push(eintrag);
+      lastEntry = eintrag;
+      render();
 
-    document.getElementById('exportCSV').onclick = () => {
+      // Felder mit letztem Eintrag vorausfüllen
+      baumart.value = eintrag.baumart;
+      guete.value = eintrag.guete;
+      laenge.value = eintrag.laenge;
+      durchmesser.value = eintrag.durchmesser;
+      datum.value = eintrag.datum;
+      bemerkung.value = eintrag.bemerkung;
+    });
+
+    document.getElementById('exportCSV').addEventListener('click', () => {
       const header = ['Baumart','Güteklasse','Länge','Durchmesser','Volumen','Datum','Standort','Bemerkung'];
-      const csv = [header.join(','), ...daten.map(e => [e.baumart,e.guete,e.laenge,e.durchmesser,e.volumen,e.datum,e.standort,e.bemerkung].join(','))].join('\n');
+      const rows = daten.map(e => [e.baumart,e.guete,e.laenge,e.durchmesser,e.volumen,e.datum,e.standort,e.bemerkung].join(','));
+      const csv = [header.join(','), ...rows].join('\n');
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-      a.download = 'thollio_HA.csv'; a.click();
-    };
+      a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+      a.download = 'holzerfassung.csv';
+      a.click();
+    });
 
-    document.getElementById('exportExcel').onclick = () => {
+    document.getElementById('exportExcel').addEventListener('click', () => {
       const ws = XLSX.utils.json_to_sheet(daten);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'thollio_HA');
-      XLSX.writeFile(wb, 'thollio_HA.xlsx');
-    };
+      XLSX.utils.book_append_sheet(wb, ws, 'Holzerfassung');
+      XLSX.writeFile(wb, 'holzerfassung.xlsx');
+    });
 
-    document.getElementById('loeschen').onclick = () => { daten=[]; speichern(); };
-    window.addEventListener('load', () => { initMap(); render(); });
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+    document.getElementById('loeschen').addEventListener('click', () => {
+      daten = [];
+      render();
+    });
+
+    window.addEventListener('load', initMap);
   </script>
 </body>
 </html>
+

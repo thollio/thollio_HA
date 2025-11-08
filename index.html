@@ -25,17 +25,23 @@
 <body class="p-6">
   <h1 class="text-3xl font-bold mb-2">🌲 Thollio Holzerfassung</h1>
 
-  <a href="https://thollio.github.io/thollio_HA_MA/" target="_blank" 
+  <!-- Neuer Button -->
+  <a href="https://thollio.github.io/thollio_HA_MA/" target="_blank"
      class="inline-block mb-6 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition">
     Hier geht es zur Holzmantelmessung
   </a>
 
   <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- Polternummer -->
     <input id="polternummer" placeholder="Polternummer" class="p-2 rounded bg-gray-700" />
+    <!-- Hiebnummer -->
     <input id="hiebnummer" placeholder="Hiebnummer" class="p-2 rounded bg-gray-700" />
+    <!-- Losnummer -->
     <input id="losnummer" placeholder="Losnummer" class="p-2 rounded bg-gray-700" />
-    <input id="stammnummer" placeholder="Stammnummer (optional)" class="p-2 rounded bg-gray-700" />
+    <!-- Stammnummer -->
+    <input id="stammnummer" placeholder="Stammnummer (optional)" type="number" class="p-2 rounded bg-gray-700" />
 
+    <!-- Baumart -->
     <div>
       <select id="baumart" class="p-2 rounded bg-gray-700 w-full">
         <option value="">-- Baumart wählen --</option>
@@ -57,6 +63,7 @@
       <input id="baumartAnders" placeholder="Baumart eingeben" class="p-2 rounded bg-gray-700 mt-2 hidden w-full" />
     </div>
 
+    <!-- Güteklasse -->
     <div>
       <select id="guete" class="p-2 rounded bg-gray-700 w-full">
         <option value="">-- Güteklasse --</option>
@@ -74,7 +81,7 @@
     <input id="laenge" placeholder="Länge (m)" type="number" class="p-2 rounded bg-gray-700" />
     <input id="durchmesser" placeholder="Durchmesser (cm)" type="number" class="p-2 rounded bg-gray-700" />
     <input id="datum" type="date" class="p-2 rounded bg-gray-700" />
-    <input id="standort" placeholder="Aktueller Standort (automatisch)" class="p-2 rounded bg-gray-700" readonly />
+
     <input id="bemerkung" placeholder="Bemerkung" class="p-2 rounded bg-gray-700" />
   </div>
 
@@ -118,7 +125,7 @@
 
   <script>
     let daten = [];
-    let map, marker, editIndex = null;
+    let map, marker, editIndex = null, lastEntry = null;
 
     const polternummer = document.getElementById('polternummer');
     const hiebnummer = document.getElementById('hiebnummer');
@@ -130,14 +137,13 @@
     const laenge = document.getElementById('laenge');
     const durchmesser = document.getElementById('durchmesser');
     const datum = document.getElementById('datum');
-    const standort = document.getElementById('standort');
     const bemerkung = document.getElementById('bemerkung');
     const tabelle = document.getElementById('tabelle');
     const gesamtVolumenEl = document.getElementById('gesamtVolumen');
     const btnAdd = document.getElementById('hinzufuegen');
     const btnUpdate = document.getElementById('aktualisieren');
 
-    // --- Karte initialisieren ---
+    // 🗺️ Karte initialisieren (GitHub-kompatibel, keine API nötig)
     function initMap() {
       map = L.map('map').setView([51.1657, 10.4515], 6);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -147,24 +153,28 @@
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
+          const lat = pos.coords.latitude, lon = pos.coords.longitude;
           setMarker(lat, lon);
-          map.setView([lat, lon], 15);
         });
       }
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setMarker(lat, lng);
+      });
     }
 
     function setMarker(lat, lng) {
-      standort.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
       if (marker) marker.setLatLng([lat, lng]);
       else {
         marker = L.marker([lat, lng], { draggable: true }).addTo(map);
         marker.on('dragend', () => {
           const pos = marker.getLatLng();
-          standort.value = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+          marker.bindPopup(`📍 ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`).openPopup();
         });
       }
+      map.setView([lat, lng], 15);
+      marker.bindPopup(`📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
     }
 
     baumart.addEventListener('change', () => {
@@ -186,14 +196,14 @@
           <td>${e.polternummer}</td>
           <td>${e.hiebnummer}</td>
           <td>${e.losnummer}</td>
-          <td>${e.stammnummer ?? ''}</td>
+          <td>${e.stammnummer || ''}</td>
           <td>${e.baumart}</td>
           <td>${e.guete}</td>
           <td>${e.laenge}</td>
           <td>${e.durchmesser}</td>
           <td>${e.volumen}</td>
           <td>${e.datum}</td>
-          <td>${e.standort}</td>
+          <td>${marker ? marker.getLatLng().lat.toFixed(6)+", "+marker.getLatLng().lng.toFixed(6) : ""}</td>
           <td>${e.bemerkung}</td>
           <td><button class='bg-red-600 px-2 py-1 rounded' onclick='loeschenEintrag(${i})'>🗑️</button></td>
         `;
@@ -205,69 +215,43 @@
 
     window.loeschenEintrag = (i) => { daten.splice(i, 1); render(); };
 
-    function ladeZumBearbeiten(i) {
-      const e = daten[i];
-      polternummer.value = e.polternummer;
-      hiebnummer.value = e.hiebnummer;
-      losnummer.value = e.losnummer;
-      stammnummer.value = e.stammnummer ?? '';
-      baumart.value = e.baumart;
-      guete.value = e.guete;
-      laenge.value = e.laenge;
-      durchmesser.value = e.durchmesser;
-      datum.value = e.datum;
-      standort.value = e.standort;
-      bemerkung.value = e.bemerkung;
-      editIndex = i;
-      btnAdd.classList.add('hidden');
-      btnUpdate.classList.remove('hidden');
-    }
-
-    btnUpdate.addEventListener('click', () => {
-      const e = daten[editIndex];
-      e.polternummer = polternummer.value;
-      e.hiebnummer = hiebnummer.value;
-      e.losnummer = losnummer.value;
-      e.stammnummer = stammnummer.value;
-      e.baumart = baumart.value;
-      e.guete = guete.value;
-      e.laenge = laenge.value;
-      e.durchmesser = durchmesser.value;
-      e.datum = datum.value;
-      e.standort = standort.value;
-      e.bemerkung = bemerkung.value;
-      e.volumen = volumenBerechnen(e.durchmesser, e.laenge);
-      render();
-      editIndex = null;
-      btnUpdate.classList.add('hidden');
-      btnAdd.classList.remove('hidden');
-    });
-
-    btnAdd.addEventListener('click', () => {
+    function eintragSpeichern() {
       let b = baumart.value === 'Andere' ? baumartAnders.value : baumart.value;
       if (!b || !guete.value || !laenge.value || !durchmesser.value) return;
 
+      const pos = marker ? marker.getLatLng() : { lat: 0, lng: 0 };
       const eintrag = {
         polternummer: polternummer.value,
         hiebnummer: hiebnummer.value,
         losnummer: losnummer.value,
-        stammnummer: stammnummer.value || '',
+        stammnummer: stammnummer.value,
         baumart: b,
         guete: guete.value,
         laenge: laenge.value,
         durchmesser: durchmesser.value,
         datum: datum.value,
-        standort: standort.value,
+        standort: `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`,
         bemerkung: bemerkung.value,
         volumen: volumenBerechnen(durchmesser.value, laenge.value)
       };
 
       daten.push(eintrag);
       render();
+      lastEntry = eintrag;
 
-      // 🔢 Stammnummer automatisch hochzählen
-      if (stammnummer.value && !isNaN(stammnummer.value)) {
-        stammnummer.value = parseInt(stammnummer.value) + 1;
+      // Automatische Stammnummer-Erhöhung
+      if (stammnummer.value) stammnummer.value = parseInt(stammnummer.value) + 1;
+
+      durchmesser.focus();
+    }
+
+    btnAdd.addEventListener('click', eintragSpeichern);
+
+    // Enter-Taste aktiviert nur in Durchmesser oder Bemerkung das Speichern
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (document.activeElement.id === 'durchmesser' || document.activeElement.id === 'bemerkung')) {
+        e.preventDefault();
+        eintragSpeichern();
       }
     });
 
@@ -293,7 +277,10 @@
       render();
     });
 
-    window.addEventListener('load', initMap);
+    window.addEventListener('load', () => {
+      initMap();
+      durchmesser.focus();
+    });
   </script>
 </body>
 </html>

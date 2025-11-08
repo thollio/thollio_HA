@@ -25,7 +25,6 @@
 <body class="p-6">
   <h1 class="text-3xl font-bold mb-2">🌲 Thollio Holzerfassung</h1>
 
-  <!-- Neuer Button -->
   <a href="https://thollio.github.io/thollio_HA_MA/" target="_blank" 
      class="inline-block mb-6 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition">
     Hier geht es zur Holzmantelmessung
@@ -35,6 +34,7 @@
     <input id="polternummer" placeholder="Polternummer" class="p-2 rounded bg-gray-700" />
     <input id="hiebnummer" placeholder="Hiebnummer" class="p-2 rounded bg-gray-700" />
     <input id="losnummer" placeholder="Losnummer" class="p-2 rounded bg-gray-700" />
+    <input id="stammnummer" placeholder="Stammnummer (optional)" class="p-2 rounded bg-gray-700" />
 
     <div>
       <select id="baumart" class="p-2 rounded bg-gray-700 w-full">
@@ -74,10 +74,7 @@
     <input id="laenge" placeholder="Länge (m)" type="number" class="p-2 rounded bg-gray-700" />
     <input id="durchmesser" placeholder="Durchmesser (cm)" type="number" class="p-2 rounded bg-gray-700" />
     <input id="datum" type="date" class="p-2 rounded bg-gray-700" />
-
-    <!-- Standort (automatisch) -->
-    <input id="standort" placeholder="Aktueller Standort (wird automatisch erfasst)" class="p-2 rounded bg-gray-700" readonly />
-
+    <input id="standort" placeholder="Aktueller Standort (automatisch)" class="p-2 rounded bg-gray-700" readonly />
     <input id="bemerkung" placeholder="Bemerkung" class="p-2 rounded bg-gray-700" />
   </div>
 
@@ -97,6 +94,7 @@
         <th>Polternr.</th>
         <th>Hiebnr.</th>
         <th>Losnr.</th>
+        <th>Stammnr.</th>
         <th>Baumart</th>
         <th>Güteklasse</th>
         <th>Länge (m)</th>
@@ -111,7 +109,7 @@
     <tbody id="tabelle"></tbody>
     <tfoot>
       <tr class="font-bold bg-gray-800">
-        <td colspan="7" class="text-right pr-4">Gesamtvolumen:</td>
+        <td colspan="8" class="text-right pr-4">Gesamtvolumen:</td>
         <td id="gesamtVolumen">0.000</td>
         <td colspan="4"></td>
       </tr>
@@ -125,6 +123,7 @@
     const polternummer = document.getElementById('polternummer');
     const hiebnummer = document.getElementById('hiebnummer');
     const losnummer = document.getElementById('losnummer');
+    const stammnummer = document.getElementById('stammnummer');
     const baumart = document.getElementById('baumart');
     const baumartAnders = document.getElementById('baumartAnders');
     const guete = document.getElementById('guete');
@@ -146,15 +145,12 @@
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
 
-      // Versuche, aktuelle Position zu bekommen
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
           setMarker(lat, lon);
           map.setView([lat, lon], 15);
-        }, err => {
-          console.warn("Standort konnte nicht ermittelt werden:", err);
         });
       }
     }
@@ -171,7 +167,6 @@
       }
     }
 
-    // --- Rest wie gehabt ---
     baumart.addEventListener('change', () => {
       baumartAnders.classList.toggle('hidden', baumart.value !== 'Andere');
     });
@@ -191,6 +186,7 @@
           <td>${e.polternummer}</td>
           <td>${e.hiebnummer}</td>
           <td>${e.losnummer}</td>
+          <td>${e.stammnummer ?? ''}</td>
           <td>${e.baumart}</td>
           <td>${e.guete}</td>
           <td>${e.laenge}</td>
@@ -214,6 +210,7 @@
       polternummer.value = e.polternummer;
       hiebnummer.value = e.hiebnummer;
       losnummer.value = e.losnummer;
+      stammnummer.value = e.stammnummer ?? '';
       baumart.value = e.baumart;
       guete.value = e.guete;
       laenge.value = e.laenge;
@@ -231,6 +228,7 @@
       e.polternummer = polternummer.value;
       e.hiebnummer = hiebnummer.value;
       e.losnummer = losnummer.value;
+      e.stammnummer = stammnummer.value;
       e.baumart = baumart.value;
       e.guete = guete.value;
       e.laenge = laenge.value;
@@ -248,10 +246,12 @@
     btnAdd.addEventListener('click', () => {
       let b = baumart.value === 'Andere' ? baumartAnders.value : baumart.value;
       if (!b || !guete.value || !laenge.value || !durchmesser.value) return;
+
       const eintrag = {
         polternummer: polternummer.value,
         hiebnummer: hiebnummer.value,
         losnummer: losnummer.value,
+        stammnummer: stammnummer.value || '',
         baumart: b,
         guete: guete.value,
         laenge: laenge.value,
@@ -261,13 +261,19 @@
         bemerkung: bemerkung.value,
         volumen: volumenBerechnen(durchmesser.value, laenge.value)
       };
+
       daten.push(eintrag);
       render();
+
+      // 🔢 Stammnummer automatisch hochzählen
+      if (stammnummer.value && !isNaN(stammnummer.value)) {
+        stammnummer.value = parseInt(stammnummer.value) + 1;
+      }
     });
 
     document.getElementById('exportCSV').addEventListener('click', () => {
-      const header = ['Polternummer','Hiebnummer','Losnummer','Baumart','Güteklasse','Länge','Durchmesser','Volumen','Datum','Standort','Bemerkung'];
-      const rows = daten.map(e => [e.polternummer,e.hiebnummer,e.losnummer,e.baumart,e.guete,e.laenge,e.durchmesser,e.volumen,e.datum,e.standort,e.bemerkung].join(','));
+      const header = ['Polternummer','Hiebnummer','Losnummer','Stammnummer','Baumart','Güteklasse','Länge','Durchmesser','Volumen','Datum','Standort','Bemerkung'];
+      const rows = daten.map(e => [e.polternummer,e.hiebnummer,e.losnummer,e.stammnummer,e.baumart,e.guete,e.laenge,e.durchmesser,e.volumen,e.datum,e.standort,e.bemerkung].join(','));
       const csv = [header.join(','), ...rows].join('\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));

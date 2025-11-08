@@ -135,7 +135,7 @@
     const tabelle = document.getElementById('tabelle');
     const gesamtVolumenEl = document.getElementById('gesamtVolumen');
 
-    // 🌍 Karte initialisieren
+    // 🌍 Karte
     function initMap() {
       map = L.map('map').setView([51.1657, 10.4515], 6);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -143,7 +143,6 @@
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
 
-      // Live-GPS-Tracking aktivieren
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(pos => {
           const lat = pos.coords.latitude, lon = pos.coords.longitude;
@@ -155,9 +154,7 @@
 
     function setMarker(lat, lng) {
       if (marker) marker.setLatLng([lat, lng]);
-      else {
-        marker = L.marker([lat, lng]).addTo(map);
-      }
+      else marker = L.marker([lat, lng]).addTo(map);
       map.setView([lat, lng], 15);
       marker.bindPopup(`📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`).openPopup();
     }
@@ -217,15 +214,25 @@
       render();
 
       if (stammnummer.value) stammnummer.value = parseInt(stammnummer.value) + 1;
-      durchmesser.focus();
+      laenge.value = '';
+      durchmesser.value = '';
+      laenge.focus();
+      laenge.select();
     }
 
     document.getElementById('hinzufuegen').addEventListener('click', eintragSpeichern);
 
+    // ⏎ Eingabelogik: Länge → Durchmesser → Speichern
     document.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (document.activeElement.id === 'durchmesser' || document.activeElement.id === 'bemerkung')) {
-        e.preventDefault();
-        eintragSpeichern();
+      if (e.key === 'Enter') {
+        if (document.activeElement.id === 'laenge') {
+          e.preventDefault();
+          durchmesser.focus();
+          durchmesser.select();
+        } else if (document.activeElement.id === 'durchmesser') {
+          e.preventDefault();
+          eintragSpeichern();
+        }
       }
     });
 
@@ -253,7 +260,8 @@
 
     window.addEventListener('load', () => {
       initMap();
-      durchmesser.focus();
+      laenge.focus();
+      laenge.select();
     });
   </script>
 </body>

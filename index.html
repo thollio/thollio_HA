@@ -144,6 +144,13 @@
     const btnAdd = document.getElementById('hinzufuegen');
     const btnUpdate = document.getElementById('aktualisieren');
 
+    // --- Aktuelles Datum als Standardwert ---
+    window.addEventListener('load', () => {
+      const heute = new Date();
+      datum.value = heute.toISOString().split('T')[0];
+      initMap();
+    });
+
     // --- OpenStreetMap ---
     function initMap() {
       map = L.map('map').setView([51.1657, 10.4515], 6);
@@ -267,7 +274,6 @@
     });
 
     // --- Enter-Steuerung ---
-    let eingabePhase = 0;
     laenge.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -300,8 +306,6 @@
     });
 
     document.getElementById('loeschen').addEventListener('click', () => { daten = []; render(); });
-
-    window.addEventListener('load', initMap);
   </script>
 </body>
 </html>

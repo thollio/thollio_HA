@@ -195,6 +195,14 @@
       const b = baumart.value === 'Andere' ? baumartAnders.value : baumart.value;
       const pos = currentPos ? `${currentPos.lat.toFixed(6)}, ${currentPos.lon.toFixed(6)}` : '';
 
+      // 📅 Automatisches Datum, wenn leer
+      let dat = datum.value;
+      if (!dat) {
+        const heute = new Date();
+        dat = heute.toISOString().split('T')[0];
+        datum.value = dat;
+      }
+
       const eintrag = {
         polternummer: polternummer.value,
         hiebnummer: hiebnummer.value,
@@ -204,7 +212,7 @@
         guete: guete.value,
         laenge: laenge.value,
         durchmesser: durchmesser.value,
-        datum: datum.value,
+        datum: dat,
         standort: pos,
         bemerkung: bemerkung.value,
         volumen: volumenBerechnen(durchmesser.value, laenge.value)
